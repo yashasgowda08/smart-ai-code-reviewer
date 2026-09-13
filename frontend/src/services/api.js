@@ -1,6 +1,8 @@
 import axios from 'axios';
 
-const API_BASE = 'http://127.0.0.1:8001';
+// Auto-detect: use the same host as the frontend but on port 8001
+// This works from any device (PC browser, phone, tablet) on the same network
+const API_BASE = `http://${window.location.hostname}:8001`;
 
 const apiClient = axios.create({
   baseURL: API_BASE,
