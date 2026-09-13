@@ -1,8 +1,9 @@
 import axios from 'axios';
 
-// Auto-detect: use the same host as the frontend but on port 8001
-// This works from any device (PC browser, phone, tablet) on the same network
-const API_BASE = `http://${window.location.hostname}:8001`;
+// Production: set VITE_API_BASE in Vercel environment variables
+// Local dev: auto-detects your PC's IP so phones/laptops on same Wi-Fi work too
+const API_BASE = import.meta.env.VITE_API_BASE || `http://${window.location.hostname}:8001`;
+
 
 const apiClient = axios.create({
   baseURL: API_BASE,
