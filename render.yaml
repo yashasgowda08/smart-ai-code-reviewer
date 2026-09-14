@@ -13,5 +13,5 @@ services:
       - key: DATABASE_URL
         value: sqlite:///./smart_reviewer.db
       - key: CORS_ORIGIN
-        value: https://smart-ai-code-reviewer.vercel.app
+        value: https://smart-ai-code-reviewer-xl54-mu.vercel.app,https://smart-ai-code-reviewer.vercel.app
     plan: free
