@@ -101,11 +101,12 @@ export default function AdminDashboard({ onExitAdmin }) {
   const filteredReviews = reviews.filter(r => {
     const matchesUser = userFilter === 'ALL' || r.user_id === userFilter;
     const matchesRisk = riskFilter === 'ALL' || r.risk_level === riskFilter;
+    const term = String(searchTerm || '').toLowerCase();
     const matchesSearch =
-      r.target_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      r.user_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      r.review_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      r.language.toLowerCase().includes(searchTerm.toLowerCase());
+      String(r?.target_name || '').toLowerCase().includes(term) ||
+      String(r?.user_id || '').toLowerCase().includes(term) ||
+      String(r?.review_id || '').toLowerCase().includes(term) ||
+      String(r?.language || '').toLowerCase().includes(term);
     return matchesUser && matchesRisk && matchesSearch;
   });
 

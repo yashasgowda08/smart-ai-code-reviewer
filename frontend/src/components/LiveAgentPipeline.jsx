@@ -44,8 +44,11 @@ export default function LiveAgentPipeline({ active = true }) {
     let logIdx = 0;
     const logInterval = setInterval(() => {
       if (logIdx < LOG_MESSAGES.length) {
-        setLogs(prev => [...prev.slice(-5), LOG_MESSAGES[logIdx]]);
+        const nextMsg = LOG_MESSAGES[logIdx];
         logIdx += 1;
+        if (nextMsg && typeof nextMsg === 'string') {
+          setLogs(prev => [...prev.slice(-5), nextMsg]);
+        }
       }
     }, 350);
 
@@ -120,11 +123,19 @@ export default function LiveAgentPipeline({ active = true }) {
           <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase' }}>Agent Telemetry Stream</span>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', minHeight: '80px', fontFamily: "'Fira Code', monospace", fontSize: '0.75rem' }}>
-          {logs.map((msg, i) => (
-            <div key={i} style={{ color: msg.includes('SECURITY') ? '#34d399' : msg.includes('QUALITY') ? '#38bdf8' : msg.includes('PERFORMANCE') ? '#c084fc' : msg.includes('PREDICTION') ? '#fbbf24' : '#93c5fd', opacity: i === logs.length - 1 ? 1 : 0.7 }}>
-              <span style={{ color: '#64748b' }}>&gt;</span> {msg}
-            </div>
-          ))}
+          {logs.map((msg, i) => {
+            if (!msg || typeof msg !== 'string') return null;
+            const isSec = msg.includes('SECURITY');
+            const isQual = msg.includes('QUALITY');
+            const isPerf = msg.includes('PERFORMANCE');
+            const isPred = msg.includes('PREDICTION');
+            const msgColor = isSec ? '#34d399' : isQual ? '#38bdf8' : isPerf ? '#c084fc' : isPred ? '#fbbf24' : '#93c5fd';
+            return (
+              <div key={i} style={{ color: msgColor, opacity: i === logs.length - 1 ? 1 : 0.7 }}>
+                <span style={{ color: '#64748b' }}>&gt;</span> {msg}
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>

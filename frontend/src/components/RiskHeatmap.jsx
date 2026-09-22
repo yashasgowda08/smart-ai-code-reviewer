@@ -10,9 +10,11 @@ export default function RiskHeatmap({ findings = [] }) {
     matrix[cat] = { CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0 };
   });
 
-  findings.forEach(f => {
-    const cat = f.category || 'Security';
-    const sev = f.severity || 'LOW';
+  const safeFindings = Array.isArray(findings) ? findings : [];
+  safeFindings.forEach(f => {
+    if (!f) return;
+    const cat = String(f.category || 'Security');
+    const sev = String(f.severity || 'LOW').toUpperCase();
     if (matrix[cat] && matrix[cat][sev] !== undefined) {
       matrix[cat][sev] += 1;
     } else {

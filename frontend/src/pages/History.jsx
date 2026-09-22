@@ -64,10 +64,11 @@ export default function History({ onViewReview }) {
   };
 
   const filtered = history.filter(r => {
+    const term = String(searchTerm || '').toLowerCase();
     const matchesSearch =
-      r.target_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      r.review_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      r.language.toLowerCase().includes(searchTerm.toLowerCase());
+      String(r?.target_name || '').toLowerCase().includes(term) ||
+      String(r?.review_id || '').toLowerCase().includes(term) ||
+      String(r?.language || '').toLowerCase().includes(term);
     const matchesRisk = riskFilter === 'ALL' || r.risk_level === riskFilter;
     return matchesSearch && matchesRisk;
   });
