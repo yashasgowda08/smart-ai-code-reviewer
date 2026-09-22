@@ -61,6 +61,7 @@ export default function Review({ reviewResult, setReviewResult }) {
   const [lastSubmittedCode, setLastSubmittedCode] = useState('');
   const [lastFilename, setLastFilename] = useState('code.py');
   const [lastLang, setLastLang] = useState('Python');
+  const [selectedFileIdx, setSelectedFileIdx] = useState(0);
 
   // Modals for output
   const [isWebhookModalOpen, setIsWebhookModalOpen] = useState(false);
@@ -125,12 +126,19 @@ export default function Review({ reviewResult, setReviewResult }) {
   const resetReview = () => {
     setReviewResult(null);
     setError('');
+    setSelectedFileIdx(0);
   };
 
   const scores = reviewResult?.scores || {};
   const pred = reviewResult?.predictions || {};
   const externalAi = reviewResult?.external_ai;
   const findings = reviewResult?.findings || [];
+  const displayFiles = reviewResult?.files || [];
+  const currentFile = displayFiles[selectedFileIdx] || (lastSubmittedCode ? {
+    code: lastSubmittedCode,
+    filename: lastFilename,
+    language: lastLang
+  } : (displayFiles[0] || null));
 
   const agentChartData = [
     { name: 'Security', score: scores.security || 0, fill: '#10b981' },
@@ -283,9 +291,20 @@ export default function Review({ reviewResult, setReviewResult }) {
 
             {/* Output Actions Toolbar */}
             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
-              <button className="btn btn-secondary" onClick={resetReview}>
-                <RotateCcw size={15} />
-                New Review
+              <button
+                className="btn btn-primary"
+                onClick={resetReview}
+                style={{
+                  background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
+                  border: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  boxShadow: '0 4px 14px rgba(59, 130, 246, 0.3)'
+                }}
+              >
+                <Upload size={15} />
+                Upload Other Inputs / New Review
               </button>
 
               {/* Output 1: JSON */}
@@ -433,14 +452,39 @@ export default function Review({ reviewResult, setReviewResult }) {
             <ConsensusCard consensus={reviewResult.consensus} localScore={scores.overall} groqAi={externalAi} />
           </div>
 
-          {/* Live Annotated Code Scanner (if snippet available) */}
-          {lastSubmittedCode && (
+          {/* Live Annotated Code Scanner */}
+          {currentFile && currentFile.code && (
             <div style={{ marginBottom: '1.5rem' }}>
+              {displayFiles.length > 1 && (
+                <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', alignItems: 'center', marginBottom: '0.75rem' }}>
+                  <span style={{ fontSize: '0.8rem', color: '#94a3b8', marginRight: '0.4rem', fontWeight: 600 }}>
+                    Select File to Inspect ({displayFiles.length}):
+                  </span>
+                  {displayFiles.map((df, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => setSelectedFileIdx(i)}
+                      className="btn btn-secondary"
+                      style={{
+                        fontSize: '0.75rem',
+                        padding: '0.25rem 0.65rem',
+                        borderRadius: '6px',
+                        background: selectedFileIdx === i ? 'rgba(59, 130, 246, 0.25)' : 'rgba(255, 255, 255, 0.05)',
+                        borderColor: selectedFileIdx === i ? '#3b82f6' : 'rgba(255, 255, 255, 0.1)',
+                        color: selectedFileIdx === i ? '#93c5fd' : '#cbd5e1'
+                      }}
+                    >
+                      {df.filename} ({df.language})
+                    </button>
+                  ))}
+                </div>
+              )}
               <CodeViewerAnnotated
-                code={lastSubmittedCode}
-                findings={findings}
-                filename={lastFilename}
-                language={lastLang}
+                code={currentFile.code}
+                findings={findings.filter(f => !f.file || f.file === currentFile.filename || f.file.endsWith(currentFile.filename) || currentFile.filename.endsWith(f.file))}
+                filename={currentFile.filename}
+                language={currentFile.language}
               />
             </div>
           )}

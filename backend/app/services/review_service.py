@@ -118,6 +118,15 @@ class ReviewService:
             "generated_tests": generated_tests,
             "improved_code": improved_code,
             "code_improvements": code_improvements,
+            "files": [
+                {
+                    "filename": f.get("filename"),
+                    "language": f.get("language"),
+                    "lines_count": f.get("lines_count", 0),
+                    "code": f.get("code", "")[:12000]
+                }
+                for f in files[:10]
+            ],
             "agent_details": {
                 "security": sec_res,
                 "quality": qual_res,

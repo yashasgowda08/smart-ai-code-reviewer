@@ -47,7 +47,7 @@ export default function MultiFileUploadSection({ onReviewResult, loading, setLoa
         Multi-File Batch Review
       </h2>
       <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1.25rem' }}>
-        Upload multiple source files at once (.py, .js, .java, .ts, .go, .cpp, etc.) to run collective multi-agent project analysis.
+        Upload multiple source files across 25+ languages & configs (.py, .js, .java, .ts, .go, .rs, .cpp, .cs, .rb, .php, .kt, .swift, .sh, .sql, .yaml, .json, Dockerfile, etc.) to run collective multi-agent project analysis.
       </p>
 
       {error && (
@@ -74,12 +74,13 @@ export default function MultiFileUploadSection({ onReviewResult, loading, setLoa
           Click or drag files here to add to batch
         </p>
         <p style={{ color: '#64748b', fontSize: '0.8rem' }}>
-          Select multiple files simultaneously
+          Select multiple files simultaneously (any programming languages, scripts or configs)
         </p>
         <input
           id="multiFileInput"
           type="file"
           multiple
+          accept="*/*"
           style={{ display: 'none' }}
           onChange={handleFileChange}
         />
