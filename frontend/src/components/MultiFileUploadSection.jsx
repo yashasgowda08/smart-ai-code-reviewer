@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Files, Upload, Trash2, CheckCircle2, AlertCircle, ArrowRight } from 'lucide-react';
 import { reviewAPI } from '../services/api';
 
-export default function MultiFileUploadSection({ onReviewResult, loading, setLoading }) {
+export default function MultiFileUploadSection({ onReview, onReviewResult, loading, setLoading }) {
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [error, setError] = useState('');
 
@@ -20,23 +20,26 @@ export default function MultiFileUploadSection({ onReviewResult, loading, setLoa
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!selectedFiles.length) return;
-    setLoading(true);
-    setError('');
-
     const formData = new FormData();
     selectedFiles.forEach((file) => {
       formData.append('files', file);
     });
 
-    try {
-      const res = await reviewAPI.uploadMultipleFiles(formData);
-      if (res.data && res.data.data) {
-        onReviewResult(res.data.data);
+    if (onReview) {
+      onReview(formData, 'multi_upload');
+    } else {
+      if (setLoading) setLoading(true);
+      setError('');
+      try {
+        const res = await reviewAPI.uploadMultipleFiles(formData);
+        if (res.data && res.data.data && onReviewResult) {
+          onReviewResult(res.data.data);
+        }
+      } catch (err) {
+        setError(err.message || 'Failed to review multiple files.');
+      } finally {
+        if (setLoading) setLoading(false);
       }
-    } catch (err) {
-      setError(err.message || 'Failed to review multiple files.');
-    } finally {
-      setLoading(false);
     }
   };
 

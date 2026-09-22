@@ -18,7 +18,8 @@ export default function ImprovedCodeSection({ improvedCode, codeImprovements = [
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = filename.replace(/\.[^/.]+$/, '') + '_improved.' + (filename.split('.').pop() || 'py');
+    const safeName = filename || 'improved_code.py';
+    link.download = safeName.replace(/\.[^/.]+$/, '') + '_improved.' + (safeName.split('.').pop() || 'py');
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

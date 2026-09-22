@@ -8,6 +8,7 @@ import Register from './pages/Register';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminLoginModal from './components/AdminLoginModal';
 import CyberSpace3D from './components/CyberSpace3D';
+import ErrorBoundary from './components/ErrorBoundary';
 import { historyAPI } from './services/api';
 import './App.css';
 
@@ -115,31 +116,33 @@ export default function App() {
         />
 
         <main className="main-content">
-          {activePage === 'dashboard' && (
-            <Dashboard
-              setActivePage={setActivePage}
-              onViewReview={handleViewReview}
-            />
-          )}
+          <ErrorBoundary onReset={() => setReviewResult(null)}>
+            {activePage === 'dashboard' && (
+              <Dashboard
+                setActivePage={setActivePage}
+                onViewReview={handleViewReview}
+              />
+            )}
 
-          {activePage === 'review' && (
-            <Review
-              reviewResult={reviewResult}
-              setReviewResult={setReviewResult}
-            />
-          )}
+            {activePage === 'review' && (
+              <Review
+                reviewResult={reviewResult}
+                setReviewResult={setReviewResult}
+              />
+            )}
 
-          {activePage === 'history' && (
-            <History
-              onViewReview={handleViewReview}
-            />
-          )}
+            {activePage === 'history' && (
+              <History
+                onViewReview={handleViewReview}
+              />
+            )}
 
-          {activePage === 'admin' && (
-            <AdminDashboard
-              onExitAdmin={handleExitAdmin}
-            />
-          )}
+            {activePage === 'admin' && (
+              <AdminDashboard
+                onExitAdmin={handleExitAdmin}
+              />
+            )}
+          </ErrorBoundary>
         </main>
       </div>
 

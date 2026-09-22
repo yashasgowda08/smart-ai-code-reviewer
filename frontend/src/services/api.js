@@ -2,7 +2,11 @@ import axios from 'axios';
 
 // Production: set VITE_API_BASE in Vercel environment variables
 // Local dev: auto-detects your PC's IP so phones/laptops on same Wi-Fi work too
-const API_BASE = import.meta.env.VITE_API_BASE || `http://${window.location.hostname}:8001`;
+const API_BASE =
+  import.meta.env.VITE_API_BASE ||
+  (typeof window !== 'undefined' && window.location.hostname.includes('vercel.app')
+    ? 'https://smart-ai-code-reviewer-backend.onrender.com'
+    : `http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:8001`);
 
 
 const apiClient = axios.create({
@@ -58,13 +62,9 @@ export const reviewAPI = {
   analyzeCode: (code, filename, language) =>
     apiClient.post('/code-review/analyze', { code, filename, language }),
   uploadFile: (formData) =>
-    apiClient.post('/code-review/upload', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    }),
+    apiClient.post('/code-review/upload', formData),
   uploadMultipleFiles: (formData) =>
-    apiClient.post('/code-review/multi-upload', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    }),
+    apiClient.post('/code-review/multi-upload', formData),
   getReportUrl: (filename) => `${API_BASE}/code-review/report/${filename}`,
 };
 

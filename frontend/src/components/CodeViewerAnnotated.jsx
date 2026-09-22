@@ -4,10 +4,13 @@ import { Code2, AlertCircle, ShieldAlert, Sparkles, Check } from 'lucide-react';
 export default function CodeViewerAnnotated({ code = '', findings = [], filename = 'code.py', language = 'Python' }) {
   const [selectedFinding, setSelectedFinding] = useState(null);
 
-  const lines = code.split('\n');
+  const safeCode = typeof code === 'string' ? code : '';
+  const lines = safeCode.split('\n');
   const findingsByLine = {};
-  findings.forEach(f => {
-    const l = f.line || 1;
+  const safeFindings = Array.isArray(findings) ? findings : [];
+  safeFindings.forEach(f => {
+    if (!f) return;
+    const l = typeof f.line === 'number' ? f.line : 1;
     if (!findingsByLine[l]) findingsByLine[l] = [];
     findingsByLine[l].push(f);
   });
@@ -32,7 +35,7 @@ export default function CodeViewerAnnotated({ code = '', findings = [], filename
             const lineNum = idx + 1;
             const lineFindings = findingsByLine[lineNum] || [];
             const hasFlaw = lineFindings.length > 0;
-            const maxSev = hasFlaw ? lineFindings[0].severity : null;
+            const maxSev = hasFlaw && lineFindings[0]?.severity ? lineFindings[0].severity : 'LOW';
             const lineBg = maxSev === 'CRITICAL' ? 'rgba(239, 68, 68, 0.18)' : maxSev === 'HIGH' ? 'rgba(239, 68, 68, 0.12)' : maxSev === 'MEDIUM' ? 'rgba(245, 158, 11, 0.12)' : hasFlaw ? 'rgba(59, 130, 246, 0.1)' : 'transparent';
 
             return (
@@ -81,7 +84,7 @@ export default function CodeViewerAnnotated({ code = '', findings = [], filename
         {selectedFinding && (
           <div style={{ padding: '1rem', background: 'rgba(15, 23, 42, 0.95)', borderTop: '1px solid var(--border-color)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.3rem' }}>
-              <span className={`badge badge-${selectedFinding.severity.toLowerCase()}`}>
+              <span className={`badge badge-${(selectedFinding?.severity || 'low').toLowerCase()}`}>
                 Line {selectedFinding.line}: {selectedFinding.title}
               </span>
               <span style={{ fontSize: '0.75rem', color: '#93c5fd' }}>{selectedFinding.cwe || selectedFinding.category}</span>

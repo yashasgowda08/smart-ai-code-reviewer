@@ -23,6 +23,13 @@ export default function CyberSpace3D() {
     if (!container) return;
 
     // 1. Scene, Camera, Renderer
+    let renderer;
+    try {
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    } catch (e) {
+      console.warn('WebGL not supported, falling back to CSS space:', e);
+      return;
+    }
     const scene = new THREE.Scene();
     scene.fog = new THREE.FogExp2(0x080b12, 0.0018);
 
@@ -35,7 +42,6 @@ export default function CyberSpace3D() {
     camera.position.z = 180;
     camera.position.y = 20;
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setClearColor(0x000000, 0); // Transparent to blend with gradient

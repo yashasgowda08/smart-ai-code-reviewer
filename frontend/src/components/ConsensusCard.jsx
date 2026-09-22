@@ -4,14 +4,15 @@ import { Scale, CheckCircle2, AlertTriangle, Cpu } from 'lucide-react';
 export default function ConsensusCard({ consensus, localScore, groqAi }) {
   if (!consensus) return null;
 
-  const comp = consensus.comparison || {};
+  const comp = consensus?.comparison || {};
   const agreement = comp.agreement || 'HIGH';
-  const confidence = consensus.confidence || 90;
-  const groqScore = groqAi ? groqAi.overall_score : null;
+  const confidence = consensus?.confidence ?? 90;
+  const groqScore = groqAi && typeof groqAi.overall_score === 'number' ? groqAi.overall_score : null;
 
   const getAgreementBadge = () => {
     if (agreement === 'HIGH') return <span className="badge badge-low">HIGH AGREEMENT</span>;
     if (agreement === 'MEDIUM') return <span className="badge badge-medium">MODERATE AGREEMENT</span>;
+    if (agreement === 'N/A' || !groqAi) return <span className="badge badge-low" style={{ background: 'rgba(59, 130, 246, 0.2)', color: '#93c5fd' }}>LOCAL VERIFIED</span>;
     return <span className="badge badge-high">DIVERGENCE DETECTED</span>;
   };
 
@@ -52,7 +53,7 @@ export default function ConsensusCard({ consensus, localScore, groqAi }) {
       </div>
 
       <p style={{ fontSize: '0.85rem', color: '#cbd5e1', fontStyle: 'italic', borderLeft: '3px solid #8b5cf6', paddingLeft: '0.75rem' }}>
-        "{consensus.explanation}"
+        "{consensus?.explanation || 'Consensus analysis completed successfully.'}"
       </p>
     </div>
   );

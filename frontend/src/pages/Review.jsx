@@ -85,6 +85,8 @@ export default function Review({ reviewResult, setReviewResult }) {
         res = await reviewAPI.analyzeCode(payload.code, payload.filename, payload.language);
       } else if (type === 'upload') {
         res = await reviewAPI.uploadFile(payload);
+      } else if (type === 'multi_upload') {
+        res = await reviewAPI.uploadMultipleFiles(payload);
       } else if (type === 'github') {
         res = await githubAPI.review(payload.repo_url, payload.branch);
       }
@@ -132,8 +134,8 @@ export default function Review({ reviewResult, setReviewResult }) {
   const scores = reviewResult?.scores || {};
   const pred = reviewResult?.predictions || {};
   const externalAi = reviewResult?.external_ai;
-  const findings = reviewResult?.findings || [];
-  const displayFiles = reviewResult?.files || [];
+  const findings = Array.isArray(reviewResult?.findings) ? reviewResult.findings : [];
+  const displayFiles = Array.isArray(reviewResult?.files) ? reviewResult.files : [];
   const currentFile = displayFiles[selectedFileIdx] || (lastSubmittedCode ? {
     code: lastSubmittedCode,
     filename: lastFilename,
@@ -149,8 +151,8 @@ export default function Review({ reviewResult, setReviewResult }) {
   ];
 
   const comparisonChartData = [
-    { name: 'Overall Score', Local: scores.overall || 0, GroqAI: externalAi ? externalAi.overall_score : 0 },
-    { name: 'Risk %', Local: pred.overall_risk || 0, GroqAI: externalAi ? (externalAi.risk_score || 0) : 0 }
+    { name: 'Overall Score', Local: scores.overall || 0, GroqAI: externalAi?.overall_score ?? 0 },
+    { name: 'Risk %', Local: pred.overall_risk || 0, GroqAI: externalAi?.risk_score ?? 0 }
   ];
 
   return (
@@ -245,6 +247,7 @@ export default function Review({ reviewResult, setReviewResult }) {
               )}
               {activeTab === 'multi_upload' && (
                 <MultiFileUploadSection
+                  onReview={handleReview}
                   onReviewResult={(data) => setReviewResult(data)}
                   loading={loading}
                   setLoading={setLoading}
@@ -406,7 +409,7 @@ export default function Review({ reviewResult, setReviewResult }) {
 
           {/* Graphics Row 2: Performance Bars + Local vs Groq Consensus Bars */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: '1.5rem', marginBottom: '1.5rem' }}>
-            <div className="card">
+            <div className="card" style={{ minWidth: 0, overflow: 'hidden' }}>
               <h3 style={{ fontSize: '1.05rem', fontWeight: 600, color: '#fff', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <Activity size={18} color="#10b981" />
                 Agent Performance Scores
@@ -427,7 +430,7 @@ export default function Review({ reviewResult, setReviewResult }) {
               </div>
             </div>
 
-            <div className="card">
+            <div className="card" style={{ minWidth: 0, overflow: 'hidden' }}>
               <h3 style={{ fontSize: '1.05rem', fontWeight: 600, color: '#fff', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <Layers size={18} color="#8b5cf6" />
                 Local Multi-Agent vs. Groq AI Comparison
@@ -481,10 +484,16 @@ export default function Review({ reviewResult, setReviewResult }) {
                 </div>
               )}
               <CodeViewerAnnotated
-                code={currentFile.code}
-                findings={findings.filter(f => !f.file || f.file === currentFile.filename || f.file.endsWith(currentFile.filename) || currentFile.filename.endsWith(f.file))}
-                filename={currentFile.filename}
-                language={currentFile.language}
+                code={currentFile?.code || ''}
+                findings={findings.filter((f) => {
+                  if (!f || !f.file) return true;
+                  if (!currentFile?.filename) return true;
+                  const fFile = String(f.file).toLowerCase();
+                  const curFile = String(currentFile.filename).toLowerCase();
+                  return fFile === curFile || fFile.endsWith(curFile) || curFile.endsWith(fFile);
+                })}
+                filename={currentFile?.filename || 'code.py'}
+                language={currentFile?.language || 'Code'}
               />
             </div>
           )}
