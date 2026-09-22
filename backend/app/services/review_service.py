@@ -1,4 +1,4 @@
-﻿import os
+import os
 import uuid
 import json
 import datetime
@@ -15,6 +15,7 @@ from ..utils.scoring import ScoringCalculator
 from ..utils.consensus import ConsensusEngine
 from .ai_service import AIService
 from .pdf_service import PDFReportService
+from .refactor_service import CodeRefactorService
 from ..database.models import Review
 
 class ReviewService:
@@ -71,6 +72,23 @@ class ReviewService:
         groq_risk = external_ai_res.get("risk_score") if external_ai_res else None
         groq_risk_level = external_ai_res.get("risk_level") if external_ai_res else None
 
+        # 4b. Extract or Synthesize Improved Code
+        improved_code = None
+        code_improvements = []
+
+        if external_ai_res:
+            improved_code = external_ai_res.get("improved_code")
+            code_improvements = external_ai_res.get("code_improvements", [])
+
+        if not improved_code:
+            improved_code, local_improvements = CodeRefactorService.generate_improved_code(
+                files=files,
+                findings=all_findings,
+                primary_lang=primary_lang
+            )
+            if not code_improvements:
+                code_improvements = local_improvements
+
         # 5. Consensus & Confidence Engine
         consensus_res = ConsensusEngine.evaluate_consensus(
             local_score=scores["overall"],
@@ -98,6 +116,8 @@ class ReviewService:
             "findings": all_findings,
             "recommendations": all_recommendations,
             "generated_tests": generated_tests,
+            "improved_code": improved_code,
+            "code_improvements": code_improvements,
             "agent_details": {
                 "security": sec_res,
                 "quality": qual_res,

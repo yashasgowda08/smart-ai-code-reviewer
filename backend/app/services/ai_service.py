@@ -1,4 +1,4 @@
-﻿import os
+import os
 import json
 import logging
 import httpx
@@ -53,9 +53,15 @@ Analyze the provided code and return ONLY a valid JSON object matching this exac
     ],
     "recommendations": ["<recommendation 1>", "<recommendation 2>"],
     "tests": ["<suggested test 1>", "<suggested test 2>"],
+    "improved_code": "<complete, fully refactored, hardened, production-ready version of the code that fixes all bugs, security vulnerabilities, performance bottlenecks, and follows clean code best practices>",
+    "code_improvements": [
+        "<concrete explanation of improvement 1, e.g. added type annotations and docstrings>",
+        "<concrete explanation of improvement 2, e.g. replaced unsafe eval/os.system with safe idioms>",
+        "<concrete explanation of improvement 3, e.g. optimized nested loop from O(N^2) to O(N)>"
+    ],
     "summary": "<2-3 sentence executive review summary>"
 }
-Ensure all scores are fair, explainable integers. Do not include markdown code block backticks if possible, return pure JSON."""
+Ensure improved_code is complete and runnable. Do not include markdown code block backticks inside the JSON string; return pure JSON."""
 
         user_prompt = f"Review the following source code files:\n\n{combined_code}"
 
@@ -122,6 +128,8 @@ Ensure all scores are fair, explainable integers. Do not include markdown code b
                 "findings": parsed.get("findings", []),
                 "recommendations": parsed.get("recommendations", []),
                 "tests": parsed.get("tests", []),
+                "improved_code": parsed.get("improved_code", "").strip() or None,
+                "code_improvements": parsed.get("code_improvements", []) or [],
                 "summary": parsed.get("summary", "External AI review completed successfully.")
             }
 

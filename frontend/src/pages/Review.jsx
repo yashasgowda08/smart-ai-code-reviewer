@@ -41,6 +41,7 @@ import LiveScoreGauge from '../components/LiveScoreGauge';
 import RadarMetricsChart from '../components/RadarMetricsChart';
 import RiskHeatmap from '../components/RiskHeatmap';
 import CodeViewerAnnotated from '../components/CodeViewerAnnotated';
+import ImprovedCodeSection from '../components/ImprovedCodeSection';
 import { reviewAPI, githubAPI, exportsAPI } from '../services/api';
 import {
   BarChart,
@@ -448,6 +449,18 @@ export default function Review({ reviewResult, setReviewResult }) {
           <div style={{ marginBottom: '1.5rem' }}>
             <FindingsTable findings={findings} />
           </div>
+
+          {/* Improved & Better Refactored Code */}
+          {reviewResult.improved_code && (
+            <div style={{ marginBottom: '1.5rem' }}>
+              <ImprovedCodeSection
+                improvedCode={reviewResult.improved_code}
+                codeImprovements={reviewResult.code_improvements || []}
+                language={reviewResult.primary_language || lastLang}
+                filename={reviewResult.target_name || lastFilename}
+              />
+            </div>
+          )}
 
           {/* Recommendations & Generated Tests */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>

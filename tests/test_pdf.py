@@ -59,3 +59,46 @@ def test_pdf_creation_with_embedded_charts(tmp_path):
     with open(result_path, "rb") as f:
         header = f.read(5)
         assert header == b"%PDF-"
+
+def test_pdf_creation_with_improved_code(tmp_path):
+    output_path = str(tmp_path / "test_report_improved.pdf")
+    mock_data = {
+        "review_id": "REV-IMPROVED01",
+        "user_id": "TEST_PDF_USER",
+        "created_at": "2026-08-18 12:00:00 UTC",
+        "target_name": "danger.py",
+        "primary_language": "Python",
+        "scores": {
+            "overall": 85,
+            "code_quality": 88,
+            "security": 90,
+            "performance": 80,
+            "testing": 85,
+            "maintainability": 84
+        },
+        "predictions": {
+            "bug_risk": 15,
+            "security_risk": 10,
+            "regression_risk": 12,
+            "technical_debt": 14,
+            "overall_risk": 12,
+            "future_bug_probability": 14,
+            "risk_level": "LOW"
+        },
+        "consensus": {
+            "comparison": {"agreement": "HIGH", "score_difference": 2, "risk_difference": 3},
+            "confidence": 95,
+            "explanation": "High consensus."
+        },
+        "findings": [],
+        "recommendations": ["Follow PEP8"],
+        "improved_code": "import logging\nimport os\n\ndef calculate_sum(val_a: int, val_b: int) -> int:\n    \"\"\"Calculate sum of two integers safely.\"\"\"\n    return val_a + val_b\n",
+        "code_improvements": [
+            "Introduced PEP 484 type annotations for type safety",
+            "Added documentation docstrings",
+            "Structured error logging and validation"
+        ]
+    }
+    result_path = PDFReportService.generate_pdf_report(mock_data, output_path)
+    assert os.path.exists(result_path)
+    assert os.path.getsize(result_path) > 10000

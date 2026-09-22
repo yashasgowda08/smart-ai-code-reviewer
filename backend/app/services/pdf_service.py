@@ -1,4 +1,4 @@
-﻿import os
+import os
 import io
 import datetime
 from typing import Dict, Any, Optional
@@ -198,6 +198,14 @@ class PDFReportService:
             fontSize=8,
             leading=10,
             textColor=colors.HexColor("#0F172A")
+        )
+        dark_code_style = ParagraphStyle(
+            "DarkCodeCustom",
+            parent=styles["Normal"],
+            fontName="Courier",
+            fontSize=7.5,
+            leading=10,
+            textColor=colors.HexColor("#E2E8F0")
         )
 
         story = []
@@ -420,10 +428,62 @@ class PDFReportService:
             story.append(Spacer(1, 3))
         story.append(Spacer(1, 10))
 
-        # 8. Generated Unit Tests
+        # 8. Recommended Improved & Hardened Code
+        improved_code = review_data.get("improved_code", "")
+        code_improvements = review_data.get("code_improvements", [])
+
+        if improved_code:
+            story.append(Paragraph("6. Recommended Improved & Production-Hardened Code", h2_style))
+            story.append(Paragraph(
+                "Adopt this refactored, quality-hardened implementation to remediate identified flaws, "
+                "eliminate technical debt, and elevate your overall code maintainability score:",
+                body_style
+            ))
+            story.append(Spacer(1, 6))
+
+            if code_improvements:
+                imp_bullets = "<br/>".join([f"&bull; <b>{imp}</b>" for imp in code_improvements[:5]])
+                imp_content = f"<font color='#065F46'><b>Key Quality Enhancements Applied:</b></font><br/>{imp_bullets}"
+                imp_table = Table([[Paragraph(imp_content, body_style)]], colWidths=[500])
+                imp_table.setStyle(TableStyle([
+                    ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#ECFDF5")),
+                    ("BOX", (0, 0), (-1, -1), 0.8, colors.HexColor("#A7F3D0")),
+                    ("TOPPADDING", (0, 0), (-1, -1), 6),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 10),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 10),
+                ]))
+                story.append(imp_table)
+                story.append(Spacer(1, 8))
+
+            # Monospace Dark Styled Code Box
+            safe_code = (
+                improved_code[:2200]
+                .replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+                .replace("\n", "<br/>")
+                .replace(" ", "&nbsp;")
+            )
+            code_box = Table(
+                [[Paragraph(f"<font color='#34D399'># Production-Grade Refactored Code (Quality & Security Hardened)</font><br/>{safe_code}", dark_code_style)]],
+                colWidths=[500]
+            )
+            code_box.setStyle(TableStyle([
+                ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#0F172A")),
+                ("BOX", (0, 0), (-1, -1), 1, colors.HexColor("#334155")),
+                ("TOPPADDING", (0, 0), (-1, -1), 8),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+                ("LEFTPADDING", (0, 0), (-1, -1), 10),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 10),
+            ]))
+            story.append(code_box)
+            story.append(Spacer(1, 12))
+
+        # 9. Generated Unit Tests
         gen_tests = review_data.get("generated_tests", [])
         if gen_tests:
-            story.append(Paragraph("6. Recommended Automated Unit Tests", h2_style))
+            story.append(Paragraph("7. Recommended Automated Unit Tests", h2_style))
             for gt in gen_tests[:2]:
                 story.append(Paragraph(f"<b>Target: {gt.get('file')} ({gt.get('language')})</b>", body_style))
                 story.append(Spacer(1, 4))
@@ -440,15 +500,15 @@ class PDFReportService:
                 story.append(test_box)
                 story.append(Spacer(1, 8))
 
-        # 9. External Groq Review Summary
+        # 10. External Groq Review Summary
         if groq_ai:
-            story.append(Paragraph("7. External Groq AI Review Executive Summary", h2_style))
+            story.append(Paragraph("8. External Groq AI Review Executive Summary", h2_style))
             summary_text = groq_ai.get("summary", "External AI review executed successfully.")
             story.append(Paragraph(f"<i>\"{summary_text}\"</i>", body_style))
             story.append(Spacer(1, 10))
 
-        # 10. Conclusion & Certification
-        story.append(Paragraph("8. Final Conclusion", h2_style))
+        # 11. Conclusion & Certification
+        story.append(Paragraph("9. Final Conclusion", h2_style))
         conclusion_text = (
             f"The codebase underwent comprehensive inspection by 5 autonomous static and predictive agents, "
             f"yielding an Overall Score of <b>{overall_score}/100</b> with a <b>{risk_level}</b> risk categorization ({risk_score}% overall risk). "
