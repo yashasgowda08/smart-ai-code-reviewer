@@ -61,6 +61,8 @@ export const authAPI = {
 export const reviewAPI = {
   analyzeCode: (code, filename, language) =>
     apiClient.post('/code-review/analyze', { code, filename, language }),
+  analyzeDiff: (diff, targetName) =>
+    apiClient.post('/code-review/diff', { diff, target_name: targetName }),
   uploadFile: (formData) =>
     apiClient.post('/code-review/upload', formData),
   uploadMultipleFiles: (formData) =>

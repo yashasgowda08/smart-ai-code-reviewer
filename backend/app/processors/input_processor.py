@@ -5,6 +5,7 @@ import tarfile
 import tempfile
 import shutil
 from typing import List, Dict, Any, Optional
+from .diff_processor import DiffProcessor
 
 EXTENSION_TO_LANGUAGE = {
     # Python
@@ -160,11 +161,21 @@ class InputProcessor:
         return True
 
     @classmethod
+    def process_git_diff(cls, diff_str: str, target_name: str = "pull_request.diff") -> Dict[str, Any]:
+        """Process unified git diff and extract changed files, hunks, additions, deletions."""
+        return DiffProcessor.parse_diff(diff_str, target_name=target_name)
+
+    @classmethod
     def process_pasted_code(cls, code: str, filename: Optional[str] = None, language: Optional[str] = None) -> Dict[str, Any]:
         if not code or not code.strip():
             raise ValueError("Pasted code cannot be empty.")
 
         final_filename = filename.strip() if filename and filename.strip() else "snippet.py"
+
+        # Auto-detect git unified diff input
+        if DiffProcessor.is_unified_diff(code) or (filename and filename.lower().endswith((".diff", ".patch"))):
+            return cls.process_git_diff(code, target_name=final_filename if final_filename.endswith((".diff", ".patch")) else "pull_request.diff")
+
         detected_lang = language if language and language != "auto" else cls.detect_language(final_filename, code)
         lines = code.splitlines()
 
@@ -190,6 +201,14 @@ class InputProcessor:
             raise ValueError("Uploaded file is empty.")
 
         lower_name = filename.lower()
+        # Handle Git Diff files directly
+        if lower_name.endswith((".diff", ".patch")):
+            try:
+                diff_text = file_bytes.decode("utf-8", errors="replace")
+                return cls.process_git_diff(diff_text, target_name=filename)
+            except Exception as e:
+                raise ValueError(f"Failed to read diff file: {str(e)}")
+
         # Handle ZIP or TAR archives
         if lower_name.endswith(".zip"):
             return cls._process_zip(file_bytes, filename)
@@ -197,12 +216,16 @@ class InputProcessor:
             return cls._process_tar(file_bytes, filename)
 
         if not cls.is_supported_file(filename):
-            raise ValueError(f"Unsupported file format '{filename}'. Please upload source code, scripts, configs, or an archive (.zip, .tar.gz).")
+            raise ValueError(f"Unsupported file format '{filename}'. Please upload source code, scripts, configs, git diffs, or an archive (.zip, .tar.gz).")
 
         try:
             code = file_bytes.decode("utf-8", errors="replace")
         except Exception as e:
             raise ValueError(f"Failed to read file as text: {str(e)}")
+
+        # Auto-detect if file contents are a unified git diff
+        if DiffProcessor.is_unified_diff(code):
+            return cls.process_git_diff(code, target_name=filename)
 
         lang = cls.detect_language(filename, code)
         lines = code.splitlines()

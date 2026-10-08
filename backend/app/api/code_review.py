@@ -1,4 +1,4 @@
-﻿import os
+import os
 from fastapi import APIRouter, Depends, HTTPException, Header, UploadFile, File, Form, status
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
@@ -15,6 +15,32 @@ class AnalyzeRequest(BaseModel):
     code: str
     filename: Optional[str] = "snippet.py"
     language: Optional[str] = "auto"
+
+class DiffRequest(BaseModel):
+    diff: str
+    target_name: Optional[str] = "pull_request.diff"
+
+@router.post("/diff")
+def analyze_git_diff(
+    req: DiffRequest,
+    x_user_id: Optional[str] = Header(None, alias="X-User-ID"),
+    db: Session = Depends(get_db)
+):
+    user_id = x_user_id.strip() if x_user_id and x_user_id.strip() else "ANONYMOUS_USER"
+    try:
+        processed = InputProcessor.process_git_diff(
+            diff_str=req.diff,
+            target_name=req.target_name or "pull_request.diff"
+        )
+        result = ReviewService.execute_review(db=db, processed_input=processed, user_id=user_id)
+        return {
+            "status": "success",
+            "data": result
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Git diff review failed: {str(e)}")
 
 @router.post("/analyze")
 def analyze_pasted_code(

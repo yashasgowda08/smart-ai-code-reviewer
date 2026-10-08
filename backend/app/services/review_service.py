@@ -16,6 +16,12 @@ from ..utils.consensus import ConsensusEngine
 from .ai_service import AIService
 from .pdf_service import PDFReportService
 from .refactor_service import CodeRefactorService
+from .static_analysis_service import StaticAnalysisService
+from .deduplication_service import FindingDeduplicationService
+from .impact_analysis_service import ImpactAnalysisService
+from .test_analysis_service import TestAnalysisService
+from .pr_comment_service import PRCommentService
+from .review_decision_service import ReviewDecisionService
 from ..database.models import Review
 
 class ReviewService:
@@ -29,6 +35,7 @@ class ReviewService:
         target_name = processed_input.get("target_name", "code_snippet")
         source_type = processed_input.get("source_type", "paste")
         primary_lang = processed_input.get("primary_language", "Generic")
+        diff_summary = processed_input.get("diff_summary", {})
 
         # 1. Execute 5 Multi-Agent Analyzers
         sec_res = SecurityAgent.analyze(files)
@@ -36,6 +43,10 @@ class ReviewService:
         perf_res = PerformanceAgent.analyze(files)
         test_res = TestingAgent.analyze(files)
         pred_res = PredictionAgent.analyze(sec_res, qual_res, perf_res, test_res)
+
+        # 1b. Execute Deterministic Static Analysis (Bandit, Radon, Ruff, Linters)
+        static_analysis = StaticAnalysisService.run_all(files)
+        static_findings = static_analysis.get("findings", [])
 
         # 2. Calculate Local Scores
         scores = ScoringCalculator.calculate_scores(
@@ -46,17 +57,69 @@ class ReviewService:
             maintainability_score=qual_res["maintainability_score"]
         )
 
-        # 3. Aggregate Findings & Recommendations
-        all_findings = []
-        all_findings.extend(sec_res.get("findings", []))
-        all_findings.extend(qual_res.get("findings", []))
-        all_findings.extend(perf_res.get("findings", []))
-        all_findings.extend(test_res.get("findings", []))
+        # 3. Aggregate All Findings
+        raw_findings = []
+        for f in sec_res.get("findings", []):
+            if "source" not in f:
+                f["source"] = "Security Agent"
+            raw_findings.append(f)
+        for f in qual_res.get("findings", []):
+            if "source" not in f:
+                f["source"] = "Quality Agent"
+            raw_findings.append(f)
+        for f in perf_res.get("findings", []):
+            if "source" not in f:
+                f["source"] = "Performance Agent"
+            raw_findings.append(f)
+        for f in test_res.get("findings", []):
+            if "source" not in f:
+                f["source"] = "Testing Agent"
+            raw_findings.append(f)
+        raw_findings.extend(static_findings)
 
-        # Sort findings by severity: CRITICAL, HIGH, MEDIUM, LOW
-        sev_order = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3}
-        all_findings.sort(key=lambda x: sev_order.get(x.get("severity", "LOW"), 4))
+        # 4. External Groq AI Analysis
+        external_ai_res = AIService.review_code_with_groq(files)
+        if external_ai_res and "findings" in external_ai_res:
+            for f in external_ai_res.get("findings", []):
+                if "source" not in f:
+                    f["source"] = "Groq AI"
+                raw_findings.append(f)
 
+        # 4b. Finding Deduplication, Multi-Source Verification, Confidence Score
+        deduped_findings = FindingDeduplicationService.deduplicate_and_verify(raw_findings)
+
+        # 4c. Change Impact Analysis
+        impact_analysis = ImpactAnalysisService.analyze_impact(
+            files=files,
+            diff_summary=diff_summary,
+            findings=deduped_findings
+        )
+
+        # 4d. Automated Test Coverage & Missing Test Cases Analysis
+        test_analysis = TestAnalysisService.analyze_tests(
+            files=files,
+            diff_summary=diff_summary
+        )
+
+        # 4e. Pinned PR Review Comments (Line-level GitHub style)
+        pr_comments = PRCommentService.generate_comments(
+            files=files,
+            findings=deduped_findings,
+            diff_summary=diff_summary
+        )
+
+        # 4f. Review Decision & Executive PR Summary
+        review_decision = ReviewDecisionService.evaluate_decision(
+            findings=deduped_findings,
+            files=files,
+            diff_summary=diff_summary,
+            test_analysis=test_analysis,
+            impact_analysis=impact_analysis,
+            overall_score=scores["overall"]
+        )
+        pr_summary = review_decision.get("pr_summary", {})
+
+        # Aggregated Recommendations
         all_recommendations = []
         for r_list in [sec_res.get("recommendations", []), qual_res.get("recommendations", []), perf_res.get("recommendations", []), test_res.get("recommendations", [])]:
             for rec in r_list:
@@ -65,14 +128,7 @@ class ReviewService:
 
         generated_tests = test_res.get("generated_tests", [])
 
-        # 4. External Groq AI Analysis
-        external_ai_res = AIService.review_code_with_groq(files)
-
-        groq_score = external_ai_res.get("overall_score") if external_ai_res else None
-        groq_risk = external_ai_res.get("risk_score") if external_ai_res else None
-        groq_risk_level = external_ai_res.get("risk_level") if external_ai_res else None
-
-        # 4b. Extract or Synthesize Improved Code
+        # 5. Extract or Synthesize Improved Code
         improved_code = None
         code_improvements = []
 
@@ -83,13 +139,17 @@ class ReviewService:
         if not improved_code:
             improved_code, local_improvements = CodeRefactorService.generate_improved_code(
                 files=files,
-                findings=all_findings,
+                findings=deduped_findings,
                 primary_lang=primary_lang
             )
             if not code_improvements:
                 code_improvements = local_improvements
 
-        # 5. Consensus & Confidence Engine
+        groq_score = external_ai_res.get("overall_score") if external_ai_res else None
+        groq_risk = external_ai_res.get("risk_score") if external_ai_res else None
+        groq_risk_level = external_ai_res.get("risk_level") if external_ai_res else None
+
+        # 6. Consensus & Confidence Engine
         consensus_res = ConsensusEngine.evaluate_consensus(
             local_score=scores["overall"],
             local_risk=pred_res["overall_risk"],
@@ -113,17 +173,28 @@ class ReviewService:
             "predictions": pred_res,
             "consensus": consensus_res,
             "external_ai": external_ai_res,
-            "findings": all_findings,
+            "findings": deduped_findings,
             "recommendations": all_recommendations,
             "generated_tests": generated_tests,
             "improved_code": improved_code,
             "code_improvements": code_improvements,
+            "static_analysis": static_analysis,
+            "impact_analysis": impact_analysis,
+            "test_analysis": test_analysis,
+            "pr_comments": pr_comments,
+            "review_decision": review_decision,
+            "pr_summary": pr_summary,
+            "diff_summary": diff_summary,
             "files": [
                 {
                     "filename": f.get("filename"),
                     "language": f.get("language"),
                     "lines_count": f.get("lines_count", 0),
-                    "code": f.get("code", "")[:12000]
+                    "code": f.get("code", "")[:12000],
+                    "status": f.get("status", "modified"),
+                    "added_lines": f.get("added_lines", []),
+                    "deleted_lines": f.get("deleted_lines", []),
+                    "hunks": f.get("hunks", [])
                 }
                 for f in files[:10]
             ],

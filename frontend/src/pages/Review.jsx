@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import {
   Upload,
   Code2,
+  GitPullRequest,
   Github,
   Download,
   RotateCcw,
@@ -31,6 +32,10 @@ import LiveEditorSection from '../components/LiveEditorSection';
 import UrlFetchSection from '../components/UrlFetchSection';
 import MultiFileUploadSection from '../components/MultiFileUploadSection';
 import DependencyScanSection from '../components/DependencyScanSection';
+import GitDiffSection from '../components/GitDiffSection';
+import PRSummaryCard from '../components/PRSummaryCard';
+import PRCommentsSection from '../components/PRCommentsSection';
+import ChangeImpactCard from '../components/ChangeImpactCard';
 import { WebhookModal, EmailPreviewModal } from '../components/OutputModals';
 import FindingsTable from '../components/FindingsTable';
 import RecommendationsList from '../components/RecommendationsList';
@@ -83,6 +88,8 @@ export default function Review({ reviewResult, setReviewResult }) {
       let res;
       if (type === 'paste') {
         res = await reviewAPI.analyzeCode(payload.code, payload.filename, payload.language);
+      } else if (type === 'diff') {
+        res = await reviewAPI.analyzeDiff(payload.diff, payload.target_name);
       } else if (type === 'upload') {
         res = await reviewAPI.uploadFile(payload);
       } else if (type === 'multi_upload') {
@@ -177,6 +184,13 @@ export default function Review({ reviewResult, setReviewResult }) {
 
           <div className="tabs-nav" style={{ flexWrap: 'wrap', gap: '0.4rem' }}>
             <button
+              className={`tab-btn ${activeTab === 'git_diff' ? 'active' : ''}`}
+              onClick={() => setActiveTab('git_diff')}
+            >
+              <GitPullRequest size={16} />
+              Git Diff / PR
+            </button>
+            <button
               className={`tab-btn ${activeTab === 'editor' ? 'active' : ''}`}
               onClick={() => setActiveTab('editor')}
             >
@@ -236,6 +250,9 @@ export default function Review({ reviewResult, setReviewResult }) {
 
           {!loading && (
             <div>
+              {activeTab === 'git_diff' && (
+                <GitDiffSection onReview={handleReview} loading={loading} />
+              )}
               {activeTab === 'editor' && (
                 <LiveEditorSection onReview={handleReview} loading={loading} />
               )}
@@ -367,6 +384,28 @@ export default function Review({ reviewResult, setReviewResult }) {
               </button>
             </div>
           </div>
+
+          {/* Executive PR Review Summary & Merge Decision */}
+          {(reviewResult.review_decision || reviewResult.pr_summary) && (
+            <PRSummaryCard
+              reviewDecision={reviewResult.review_decision}
+              prSummary={reviewResult.pr_summary}
+              targetName={reviewResult.target_name}
+            />
+          )}
+
+          {/* Change Impact & Automated Test Coverage Analysis */}
+          {(reviewResult.impact_analysis || reviewResult.test_analysis) && (
+            <ChangeImpactCard
+              impactAnalysis={reviewResult.impact_analysis}
+              testAnalysis={reviewResult.test_analysis}
+            />
+          )}
+
+          {/* Line-Level Pinned PR Review Comments */}
+          {Array.isArray(reviewResult.pr_comments) && reviewResult.pr_comments.length > 0 && (
+            <PRCommentsSection comments={reviewResult.pr_comments} />
+          )}
 
           {/* Live Radial Gauge + Key Metrics Grid */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.25rem', marginBottom: '1.5rem' }}>
