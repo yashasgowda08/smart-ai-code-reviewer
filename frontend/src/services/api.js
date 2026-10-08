@@ -11,7 +11,7 @@ const API_BASE =
 
 const apiClient = axios.create({
   baseURL: API_BASE,
-  timeout: 60000,
+  timeout: 180000,
 });
 
 apiClient.interceptors.request.use((config) => {
@@ -30,7 +30,9 @@ apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
     let customMsg = 'An unexpected error occurred.';
-    if (!error.response) {
+    if (error.code === 'ECONNABORTED' || (error.message && error.message.includes('timeout'))) {
+      customMsg = 'The analysis request took longer than expected. For very large codebases or repositories, please ensure a stable connection or select a specific branch.';
+    } else if (!error.response) {
       customMsg = 'Backend server is unavailable or offline. Please ensure FastAPI is running on port 8001.';
     } else if (error.response.data && error.response.data.detail) {
       customMsg = error.response.data.detail;
@@ -64,9 +66,9 @@ export const reviewAPI = {
   analyzeDiff: (diff, targetName) =>
     apiClient.post('/code-review/diff', { diff, target_name: targetName }),
   uploadFile: (formData) =>
-    apiClient.post('/code-review/upload', formData),
+    apiClient.post('/code-review/upload', formData, { timeout: 300000 }),
   uploadMultipleFiles: (formData) =>
-    apiClient.post('/code-review/multi-upload', formData),
+    apiClient.post('/code-review/multi-upload', formData, { timeout: 300000 }),
   getReportUrl: (filename) => `${API_BASE}/code-review/report/${filename}`,
 };
 
@@ -111,9 +113,9 @@ export const notifyAPI = {
 
 export const githubAPI = {
   clone: (repoUrl, branch) =>
-    apiClient.post('/github/clone', { repo_url: repoUrl, branch }),
+    apiClient.post('/github/clone', { repo_url: repoUrl, branch }, { timeout: 180000 }),
   review: (repoUrl, branch) =>
-    apiClient.post('/github/review', { repo_url: repoUrl, branch }),
+    apiClient.post('/github/review', { repo_url: repoUrl, branch }, { timeout: 300000 }),
 };
 
 export const historyAPI = {

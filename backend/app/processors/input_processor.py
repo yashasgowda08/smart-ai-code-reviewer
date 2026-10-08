@@ -97,9 +97,28 @@ BINARY_EXTENSIONS = {
 }
 
 IGNORED_DIRS = {
-    ".git", ".svn", ".hg", "node_modules", "venv", ".venv", "env",
-    "__pycache__", ".pytest_cache", ".next", ".nuxt", "dist", "build",
-    "bin", "obj", "out", "target", ".idea", ".vscode", "vendor"
+    ".git", ".svn", ".hg", ".bzr", ".github",
+    "node_modules", "bower_components", "jspm_packages",
+    "venv", ".venv", "env", ".env", "virtualenv", "site-packages",
+    "__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache", ".tox", ".nox",
+    ".next", ".nuxt", ".output", ".vuepress", ".docusaurus", ".svelte-kit",
+    "dist", "build", "out", "target", "bin", "obj",
+    "cmake-build-debug", "cmake-build-release",
+    ".idea", ".vscode", ".vs",
+    "vendor", "pods", ".gradle", ".m2", "packages",
+    "coverage", ".nyc_output", "htmlcov",
+    "assets", "public", "static", "images", "img", "fonts", "media", "videos"
+}
+
+IGNORED_FILE_NAMES = {
+    "package-lock.json", "yarn.lock", "pnpm-lock.yaml",
+    "composer.lock", "cargo.lock", "poetry.lock", "gemfile.lock",
+    "go.sum", "mix.lock", "pipfile.lock"
+}
+
+IGNORED_FILE_EXTENSIONS = {
+    ".min.js", ".min.css", ".map", ".bundle.js", ".chunk.js", ".min.mjs",
+    ".lock", ".log", ".tmp", ".bak", ".swp", ".class", ".pyc"
 }
 
 class InputProcessor:
@@ -258,7 +277,37 @@ class InputProcessor:
             os.makedirs(extract_dir, exist_ok=True)
 
             with zipfile.ZipFile(zip_path, "r") as zip_ref:
-                zip_ref.extractall(extract_dir)
+                extracted_count = 0
+                for info in zip_ref.infolist():
+                    if info.is_dir():
+                        continue
+                    norm_path = info.filename.replace("\\", "/")
+                    parts = [p.lower() for p in norm_path.split("/")]
+                    # Skip ignored directories
+                    if any(p in IGNORED_DIRS for p in parts[:-1]):
+                        continue
+                    basename = parts[-1]
+                    if basename in IGNORED_FILE_NAMES:
+                        continue
+                    if any(basename.endswith(ext) for ext in IGNORED_FILE_EXTENSIONS):
+                        continue
+                    ext = os.path.splitext(basename)[1]
+                    if ext in BINARY_EXTENSIONS:
+                        continue
+                    if info.file_size > 1024 * 1024:
+                        continue
+
+                    dest_path = os.path.abspath(os.path.join(extract_dir, info.filename))
+                    if not dest_path.startswith(os.path.abspath(extract_dir)):
+                        continue
+
+                    os.makedirs(os.path.dirname(dest_path), exist_ok=True)
+                    with zip_ref.open(info) as src, open(dest_path, "wb") as dst:
+                        shutil.copyfileobj(src, dst)
+
+                    extracted_count += 1
+                    if extracted_count >= 600:
+                        break
 
             return cls.process_directory(extract_dir, source_type="upload", target_name=zip_name)
         finally:
@@ -287,22 +336,32 @@ class InputProcessor:
         if not os.path.exists(dir_path):
             raise ValueError(f"Directory '{dir_path}' does not exist.")
 
-        discovered_files = []
-        total_lines = 0
+        all_candidates = []
+        total_repo_lines = 0
         lang_counts = {}
 
         for root, dirs, files in os.walk(dir_path):
-            dirs[:] = [d for d in dirs if d not in IGNORED_DIRS and not d.startswith(".")]
+            dirs[:] = [d for d in dirs if d.lower() not in IGNORED_DIRS and not d.startswith(".")]
 
             for file in sorted(files):
+                fname_lower = file.lower()
+                if fname_lower in IGNORED_FILE_NAMES:
+                    continue
+                if any(fname_lower.endswith(ext) for ext in IGNORED_FILE_EXTENSIONS):
+                    continue
                 if not cls.is_supported_file(file):
                     continue
 
                 full_path = os.path.join(root, file)
-                rel_path = os.path.relpath(full_path, dir_path).replace("\\", "/")
-
-                if os.path.getsize(full_path) > 1024 * 1024:
+                try:
+                    sz = os.path.getsize(full_path)
+                except Exception:
                     continue
+
+                if sz > 512 * 1024:
+                    continue
+
+                rel_path = os.path.relpath(full_path, dir_path).replace("\\", "/")
 
                 try:
                     with open(full_path, "r", encoding="utf-8", errors="replace") as f:
@@ -310,31 +369,47 @@ class InputProcessor:
                 except Exception:
                     continue
 
-                lang = cls.detect_language(file, code)
                 lines_count = len(code.splitlines())
-
+                lang = cls.detect_language(file, code)
                 lang_counts[lang] = lang_counts.get(lang, 0) + 1
-                total_lines += lines_count
+                total_repo_lines += lines_count
 
-                discovered_files.append({
+                # Priority heuristic: core source files in primary/major languages prioritized
+                depth = rel_path.count("/")
+                is_code = lang not in ("Markdown", "Text", "Config", "Documentation", "Generic")
+                priority = (100 if is_code else 15) - min(depth * 6, 40)
+                if lines_count > 10 and lines_count < 3000:
+                    priority += 20
+
+                all_candidates.append({
                     "filename": rel_path,
                     "language": lang,
                     "code": code,
-                    "lines_count": lines_count
+                    "lines_count": lines_count,
+                    "priority": priority
                 })
 
-        if not discovered_files:
+        if not all_candidates:
             raise ValueError("No supported source code files found in the target.")
 
         primary_lang = max(lang_counts.items(), key=lambda x: x[1])[0] if lang_counts else "Generic"
+
+        # Sort by architectural priority and pick top 80 for deep AST/multi-agent review
+        all_candidates.sort(key=lambda x: (-x["priority"], x["filename"]))
+        MAX_ANALYZED_FILES = 80
+        analyzed_files = all_candidates[:MAX_ANALYZED_FILES]
+
+        for f in analyzed_files:
+            f.pop("priority", None)
 
         return {
             "source_type": source_type,
             "target_name": target_name,
             "primary_language": primary_lang,
-            "total_files": len(discovered_files),
-            "total_lines": total_lines,
-            "files": discovered_files
+            "total_files": len(all_candidates),
+            "analyzed_files": len(analyzed_files),
+            "total_lines": total_repo_lines,
+            "files": analyzed_files
         }
 
     @classmethod
