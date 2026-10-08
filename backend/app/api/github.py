@@ -1,4 +1,4 @@
-﻿import os
+import os
 import shutil
 import tempfile
 import subprocess
@@ -154,6 +154,32 @@ def review_github_repo(
     db: Session = Depends(get_db)
 ):
     user_id = x_user_id.strip() if x_user_id and x_user_id.strip() else "ANONYMOUS_USER"
+    raw_url = req.repo_url.strip()
+
+    # If the user supplied a GitHub Pull Request URL directly (e.g. https://github.com/owner/repo/pull/123)
+    pr_match = re.search(r"github\.com/([^/]+)/([^/]+)/pull/(\d+)", raw_url)
+    if pr_match:
+        owner = pr_match.group(1)
+        repo_name = pr_match.group(2)
+        pr_num = pr_match.group(3)
+        diff_url = f"https://github.com/{owner}/{repo_name}/pull/{pr_num}.diff"
+        try:
+            with httpx.Client(follow_redirects=True, timeout=60.0) as client:
+                resp = client.get(diff_url)
+                if resp.status_code == 200 and resp.text.strip():
+                    processed = InputProcessor.process_git_diff(
+                        diff_str=resp.text,
+                        target_name=f"{owner}/{repo_name} PR #{pr_num}"
+                    )
+                    processed["source_type"] = "github"
+                    result = ReviewService.execute_review(db=db, processed_input=processed, user_id=user_id)
+                    return {
+                        "status": "success",
+                        "data": result
+                    }
+        except Exception as e:
+            logger.debug(f"Direct PR diff fetch fallback: {e}")
+
     temp_dir = None
     try:
         temp_dir = _fetch_github_repo(req.repo_url, req.branch)

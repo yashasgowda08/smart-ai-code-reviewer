@@ -79,7 +79,7 @@ export default function PRSummaryCard({ reviewDecision, prSummary, targetName })
             <span>{label.toUpperCase()}</span>
           </div>
           <span style={{ fontSize: '1rem', fontWeight: 700, color: '#f8fafc' }}>
-            Pull Request Review Verdict
+            GitHub PR Review Verdict
           </span>
         </div>
 

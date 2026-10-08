@@ -385,8 +385,9 @@ export default function Review({ reviewResult, setReviewResult }) {
             </div>
           </div>
 
-          {/* Executive PR Review Summary & Merge Decision */}
-          {(reviewResult.review_decision || reviewResult.pr_summary) && (
+          {/* Executive PR Review Summary & Merge Decision (Strictly for GitHub inputs) */}
+          {(reviewResult.source_type === 'github' || (reviewResult.target_name && reviewResult.target_name.toLowerCase().includes('github'))) &&
+           (reviewResult.review_decision || reviewResult.pr_summary) && (
             <PRSummaryCard
               reviewDecision={reviewResult.review_decision}
               prSummary={reviewResult.pr_summary}

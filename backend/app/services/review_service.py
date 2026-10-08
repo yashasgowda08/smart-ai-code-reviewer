@@ -109,15 +109,23 @@ class ReviewService:
         )
 
         # 4f. Review Decision & Executive PR Summary
-        review_decision = ReviewDecisionService.evaluate_decision(
-            findings=deduped_findings,
-            files=files,
-            diff_summary=diff_summary,
-            test_analysis=test_analysis,
-            impact_analysis=impact_analysis,
-            overall_score=scores["overall"]
-        )
-        pr_summary = review_decision.get("pr_summary", {})
+        # Pull Request Review Verdict is evaluated specifically for GitHub inputs (and git diffs)
+        is_github_input = source_type == "github" or (target_name and "github" in str(target_name).lower())
+        is_pr_context = is_github_input or source_type == "git_diff"
+
+        if is_pr_context:
+            review_decision = ReviewDecisionService.evaluate_decision(
+                findings=deduped_findings,
+                files=files,
+                diff_summary=diff_summary,
+                test_analysis=test_analysis,
+                impact_analysis=impact_analysis,
+                overall_score=scores["overall"]
+            )
+            pr_summary = review_decision.get("pr_summary", {})
+        else:
+            review_decision = None
+            pr_summary = None
 
         # Aggregated Recommendations
         all_recommendations = []
