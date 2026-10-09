@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { Sparkles, Copy, Check, Download, ShieldCheck, Zap, Code2, ArrowRight } from 'lucide-react';
-import Card3D from './Card3D';
 
 export default function ImprovedCodeSection({ improvedCode, codeImprovements = [], language = 'Python', filename = 'improved_code.py' }) {
   const [copied, setCopied] = useState(false);
@@ -27,8 +26,7 @@ export default function ImprovedCodeSection({ improvedCode, codeImprovements = [
   };
 
   return (
-    <Card3D depth={10}>
-      <div className="card" style={{
+    <div className="card" style={{
         background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(6, 78, 59, 0.25))',
         border: '1px solid rgba(16, 185, 129, 0.35)',
         boxShadow: '0 8px 32px 0 rgba(16, 185, 129, 0.12)',
@@ -183,6 +181,5 @@ export default function ImprovedCodeSection({ improvedCode, codeImprovements = [
           </span>
         </div>
       </div>
-    </Card3D>
   );
 }
